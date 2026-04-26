@@ -70,3 +70,7 @@ The server's IP should differ from the host's, and ideally not be a known datace
 ## VPN providers tested
 
 The `curve25519xsalsa20poly1305/openvpn-socks5` base image has been used in production with **ProtonVPN** for over a year (per the [tiktok-dstack deployment](../README.md#credits)). Other providers (Mullvad, AirVPN, NordVPN) should work as long as they hand you a standard `.ovpn` file with `auth-user-pass`.
+
+---
+
+_Verified end-to-end with the `test/` Playwright spec on 2026-04-26 against a ProtonVPN US tunnel — extension cookie sync → InnerTube poll → push delivery all green._
