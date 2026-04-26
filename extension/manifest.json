@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "OpenFeedling Cookie Sync",
+  "version": "0.1.0",
+  "description": "Syncs YouTube session cookies to your self-hosted OpenFeedling server so it can monitor your shorts activity even when this device is offline.",
+  "permissions": ["cookies", "storage", "alarms"],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.google.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OpenFeedling"
+  }
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openfeedling</title>
+<style>
+  :root { --bg:#FFF9F0; --card:#fff; --primary:#FF9B85; --text:#4A4A4A; --light:#8A8A8A; --warn:#c80; --err:#c33; --ok:#2a8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:32px 16px; }
+  .container { max-width:560px; margin:0 auto; }
+  h1 { font-size:2rem; text-align:center; color:var(--primary); margin-bottom:8px; }
+  .sub { text-align:center; color:var(--light); font-size:0.85rem; margin-bottom:24px; }
+  .card { background:var(--card); border-radius:20px; padding:24px; box-shadow:0 4px 24px rgba(255,155,133,0.12); margin-bottom:16px; }
+  .cat { font-size:5rem; text-align:center; margin-bottom:8px; }
+  .state-code { text-align:center; font-weight:600; font-size:1.2rem; text-transform:capitalize; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
+  .stat { text-align:center; }
+  .stat b { display:block; font-size:1.4rem; color:var(--primary); }
+  .stat span { font-size:0.75rem; color:var(--light); }
+  .diary { white-space:pre-wrap; line-height:1.5; font-family:'Caveat',serif; font-size:1.1rem; }
+  .actions { display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+  button { background:var(--primary); color:#fff; border:0; padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem; }
+  button.ghost { background:transparent; color:var(--primary); border:1px solid var(--primary); }
+  .err { color:var(--err); font-size:0.85rem; text-align:center; min-height:1em; margin-top:8px; }
+  .foot { text-align:center; color:var(--light); font-size:0.75rem; margin-top:24px; }
+  .health { display:flex; justify-content:space-between; font-size:0.8rem; padding:6px 0; border-bottom:1px solid #eee; }
+  .health:last-child { border-bottom:0; }
+  .health b { font-weight:500; color:var(--text); }
+  .badge { padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; }
+  .badge.ok { background:#dfead8; color:var(--ok); }
+  .badge.warn { background:#fff0d0; color:var(--warn); }
+  .badge.err { background:#fde0e0; color:var(--err); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>openfeedling</h1>
+  <div class="sub" id="subline">loading...</div>
+
+  <div class="card">
+    <div class="cat" id="cat">🐈</div>
+    <div class="state-code" id="stateCode">—</div>
+    <div class="stats">
+      <div class="stat"><b id="energy">—</b><span>energy</span></div>
+      <div class="stat"><b id="continuous">—</b><span>min continuous</span></div>
+      <div class="stat"><b id="shortsToday">—</b><span>shorts today</span></div>
+    </div>
+    <div class="actions">
+      <button id="enableBtn">enable push</button>
+      <button class="ghost" id="testBtn">send test push</button>
+      <button class="ghost" id="pollBtn">poll now</button>
+      <button class="ghost" id="refreshBtn">refresh</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">health</div>
+    <div class="health"><b>cookies</b><span id="cookieStatus">—</span></div>
+    <div class="health"><b>last poll</b><span id="pollStatus">—</span></div>
+    <div class="health"><b>next poll</b><span id="nextPoll">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="diary" id="diary">loading diary...</div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">registered devices <span id="subCount" style="color:var(--light);font-weight:400"></span></div>
+    <div id="subList" style="font-size:0.8rem;color:var(--text)"></div>
+  </div>
+
+  <div class="foot">openfeedling · self-hosted · poll: 5min idle / 60s active</div>
+</div>
+<script>
+const catEmoji = { night_owl:'🌙', drained:'😮‍💨', hyped:'✨', chill:'😺', cozy:'😻', missing:'🥺' };
+let vapidKey = null;
+
+function urlBase64ToUint8Array(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const b = (b64 + pad).replace(/-/g,'+').replace(/_/g,'/');
+  return Uint8Array.from(atob(b), c => c.charCodeAt(0));
+}
+
+function fmtAge(ms) {
+  if (!isFinite(ms)) return 'never';
+  const min = Math.round(ms / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}min ago`;
+  return `${Math.round(min/60)}h ago`;
+}
+
+function fmtIn(ts) {
+  const s = Math.round((ts - Date.now()) / 1000);
+  if (s < 0) return 'overdue';
+  if (s < 60) return `in ${s}s`;
+  return `in ${Math.round(s/60)}min`;
+}
+
+function badge(klass, text) { return `<span class="badge ${klass}">${text}</span>`; }
+
+async function refreshState() {
+  try {
+    const res = await fetch('api/state');
+    const { state, cookies, poll } = await res.json();
+    if (state) {
+      document.getElementById('stateCode').textContent = state.stateCode.replace('_',' ');
+      document.getElementById('cat').textContent = catEmoji[state.stateCode] || '🐈';
+      document.getElementById('energy').textContent = state.energy;
+      document.getElementById('continuous').textContent = state.continuousMinutes;
+      document.getElementById('shortsToday').textContent = state.shortsToday;
+      document.getElementById('subline').textContent =
+        new Date(state.computedAt).toLocaleTimeString() + ' · vibe: ' + state.vibe;
+    } else {
+      document.getElementById('subline').textContent = 'waiting for first poll...';
+    }
+
+    const cs = document.getElementById('cookieStatus');
+    if (!cookies?.present) cs.innerHTML = badge('err', 'missing — install extension');
+    else if (cookies.ageMs > 60*60*1000) cs.innerHTML = badge('warn', 'stale ' + fmtAge(cookies.ageMs));
+    else cs.innerHTML = badge('ok', fmtAge(cookies.ageMs));
+
+    const ps = document.getElementById('pollStatus');
+    if (!poll?.lastPollAt) ps.innerHTML = badge('warn', 'pending');
+    else if (poll.lastPollOk) ps.innerHTML = badge('ok', fmtAge(Date.now() - poll.lastPollAt));
+    else ps.innerHTML = badge('err', poll.lastPollError || 'failed');
+
+    const np = document.getElementById('nextPoll');
+    np.textContent = poll?.nextPollAt ? fmtIn(poll.nextPollAt) : '—';
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+async function refreshDiary(force = false) {
+  try {
+    const res = await fetch('api/diary' + (force ? '?force=1' : ''));
+    const { diary, error } = await res.json();
+    document.getElementById('diary').textContent = diary || ('(' + (error || 'no diary yet') + ')');
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+async function enablePush() {
+  try {
+    if (!('serviceWorker' in navigator)) throw new Error('no service worker support');
+    if (!vapidKey) {
+      const res = await fetch('api/vapid-key');
+      const d = await res.json();
+      if (!d.key) throw new Error(d.error || 'no vapid key');
+      vapidKey = d.key;
+    }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('notifications denied');
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+    const j = sub.toJSON();
+    await fetch('api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys }),
+    });
+    document.getElementById('err').textContent = 'push enabled ✓';
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+async function testPush() {
+  try {
+    const r = await fetch('api/test-push', { method: 'POST' });
+    const d = await r.json();
+    document.getElementById('err').textContent = 'push sent=' + d.sent + ' pruned=' + d.pruned;
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+async function pollNow() {
+  try {
+    const r = await fetch('api/poll-now', { method: 'POST' });
+    const d = await r.json();
+    document.getElementById('err').textContent = d.error
+      ? 'poll error: ' + d.error
+      : ('polled: watching=' + d.watching + (d.skipped ? ' (skipped: ' + d.skipped + ')' : ''));
+    refreshState();
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+document.getElementById('enableBtn').onclick = enablePush;
+document.getElementById('testBtn').onclick = testPush;
+document.getElementById('pollBtn').onclick = pollNow;
+document.getElementById('refreshBtn').onclick = () => { refreshState(); refreshDiary(true); };
+
+async function refreshSubs() {
+  try {
+    const r = await fetch('api/subs');
+    const { subs } = await r.json();
+    document.getElementById('subCount').textContent = '(' + (subs?.length || 0) + ')';
+    const list = document.getElementById('subList');
+    list.innerHTML = (subs || []).map(s => {
+      const created = new Date(s.createdAt).toLocaleString();
+      const safe = s.endpoint.replace(/"/g, '&quot;');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee">
+        <span><b>${s.host}</b> · ${s.fingerprint} · <span style="color:var(--light);font-size:0.75rem">${created}</span></span>
+        <button class="ghost" style="padding:4px 8px;font-size:0.75rem" data-ep="${safe}">remove</button>
+      </div>`;
+    }).join('') || '<div style="color:var(--light)">none yet</div>';
+    list.querySelectorAll('button[data-ep]').forEach(b => {
+      b.onclick = async () => {
+        await fetch('api/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: b.dataset.ep }),
+        });
+        refreshSubs();
+      };
+    });
+  } catch (e) { document.getElementById('err').textContent = e.message; }
+}
+
+refreshState();
+refreshDiary();
+refreshSubs();
+setInterval(refreshState, 30_000);
+setInterval(refreshSubs, 60_000);
+</script>
+</body>
+</html>
