@@ -1,0 +1,56 @@
+# Opt-in deploy with OpenVPN → SOCKS5 sidecar.
+# Routes all of openfeedling's outbound HTTPS through your own VPN provider
+# (ProtonVPN, Mullvad, AirVPN, etc.) so YouTube sees a residential-ish IP
+# instead of your cloud host's datacenter IP.
+#
+# Quickstart:
+#   1. cp .env.example .env  (in this directory)
+#   2. base64 -w0 your-vpn.ovpn  → paste as OVPN_CONFIG_BASE64
+#   3. fill in OPENVPN_USER / OPENVPN_PASS / EXT_SHARED_SECRET / VAPID keys
+#   4. docker compose up --build -d
+
+services:
+  vpn:
+    build: ./openvpn-socks5
+    privileged: true
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/net/tun
+    environment:
+      SOCKS5_PORT: "1080"
+      DAEMON_MODE: "true"
+      OPENVPN_USER: ${OPENVPN_USER}
+      OPENVPN_PASS: ${OPENVPN_PASS}
+      OVPN_CONFIG_BASE64: ${OVPN_CONFIG_BASE64}
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      - vpn
+    environment:
+      EXT_SHARED_SECRET: ${EXT_SHARED_SECRET}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:you@example.com}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DIARY_MODEL: ${DIARY_MODEL:-anthropic/claude-sonnet-4-5}
+      PORT: "3000"
+      DATA_DIR: /data
+      # Deno's fetch honors HTTPS_PROXY natively, including socks5://.
+      HTTPS_PROXY: socks5://vpn:1080
+      HTTP_PROXY: socks5://vpn:1080
+      # Web Push (FCM/autopush) must NOT route through the VPN — those endpoints
+      # block VPN egress. Loopback subscribers (your dashboard) and FCM-issued
+      # endpoints are fine to bypass.
+      NO_PROXY: fcm.googleapis.com,jmt17.google.com,updates.push.services.mozilla.com,localhost,127.0.0.1
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - server-data:/data
+    restart: unless-stopped
+
+volumes:
+  server-data:

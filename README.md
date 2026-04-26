@@ -62,6 +62,7 @@ OpenFeedling needs an **always-on** host (the server holds an in-memory poll loo
 | **Railway / Render** | Docker deploy, attach a persistent disk, set env vars. |
 | **VPS / Raspberry Pi** | `deno task start` behind nginx + Let's Encrypt. |
 | **ngrok** | Easiest way to test the phone push flow against a local server. |
+| **Cloud + your VPN** | See [`deploy/`](./deploy/) — opt-in compose stack with an OpenVPN→SOCKS5 sidecar so YouTube sees your VPN provider's IP instead of the cloud host's datacenter IP. Bring your own `.ovpn` (ProtonVPN, Mullvad, AirVPN, ...). |
 
 Vercel / Cloudflare Workers / Lambda are not a good fit for v1 (the architecture assumes a long-running poll loop with local state). A Vercel Cron + KV refactor is a future direction.
 

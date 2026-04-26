@@ -6,3 +6,5 @@ node_modules/
 test/cookies.json
 test/test-results/
 test/playwright-report/
+deploy/.env
+deploy/*.ovpn
