@@ -1,0 +1,41 @@
+# Two containers sharing the host network so the extension can talk to
+# localhost:3000 (which Chrome treats as a secure origin → Push works).
+# Linux only. macOS users: skip Docker, run server + playwright natively.
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    network_mode: host
+    environment:
+      EXT_SHARED_SECRET: test-secret-12345
+      # Throwaway VAPID pair — generated specifically for the E2E test, do not reuse.
+      VAPID_PUBLIC_KEY: BHuos9vbI7sKaltzg4bn4E3r1BIogpObBeyrrGQdgd1QZezGBGpYEpu1zIAEuwxgHIPpS7jIy0CzdDMIQfHyAAk
+      VAPID_PRIVATE_KEY: ni7di0MpUGgWkHd8R4h2tCnEgPUv3TfqxjFsvmvdJC8
+      VAPID_SUBJECT: mailto:e2e@openfeedling.test
+      PORT: "3000"
+      DATA_DIR: /data
+      POLL_IDLE_MS: "300000"
+      POLL_ACTIVE_MS: "60000"
+    volumes:
+      - server-data:/data
+
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    depends_on:
+      - server
+    environment:
+      SERVER_URL: http://localhost:3000
+      EXT_SHARED_SECRET: test-secret-12345
+      YT_COOKIES_JSON: ${YT_COOKIES_JSON}
+    volumes:
+      - ../extension:/ext:ro
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+
+volumes:
+  server-data:
