@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "OpenFeedling",
   "version": "0.1.0",
-  "description": "Sync your YouTube session cookies to your self-hosted OpenFeedling server so it can break your shorts doomscrolling loop with gentle push notifications.",
+  "description": "Sync your YouTube cookies to your self-hosted OpenFeedling server so it can break your shorts doomscrolling loop.",
   "permissions": ["cookies", "storage", "alarms"],
   "icons": {
     "16": "icons/icon-16.png",
