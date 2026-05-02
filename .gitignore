@@ -8,3 +8,4 @@ test/test-results/
 test/playwright-report/
 deploy/.env
 deploy/*.ovpn
+openfeedling-extension-*.zip

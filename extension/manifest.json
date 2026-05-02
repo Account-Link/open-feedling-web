@@ -1,19 +1,33 @@
 {
   "manifest_version": 3,
-  "name": "OpenFeedling Cookie Sync",
+  "name": "OpenFeedling",
   "version": "0.1.0",
-  "description": "Syncs YouTube session cookies to your self-hosted OpenFeedling server so it can monitor your shorts activity even when this device is offline.",
+  "description": "Sync your YouTube session cookies to your self-hosted OpenFeedling server so it can break your shorts doomscrolling loop with gentle push notifications.",
   "permissions": ["cookies", "storage", "alarms"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "host_permissions": [
     "https://*.youtube.com/*",
-    "https://*.google.com/*"
+    "https://*.google.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
-  "optional_host_permissions": ["<all_urls>"],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "service-worker.js"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "OpenFeedling"
+    "default_title": "OpenFeedling",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   }
 }

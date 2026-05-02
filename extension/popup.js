@@ -46,14 +46,10 @@ $("save").onclick = async () => {
     $("status").innerHTML = `<span class="err">URL must start with http(s)://</span>`;
     return;
   }
-  // Request permission to fetch the user's chosen server. localhost works without this.
-  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(serverUrl);
-  if (!isLocal) {
-    const granted = await chrome.permissions.request({ origins: [`${serverUrl}/*`] });
-    if (!granted) {
-      $("status").innerHTML = `<span class="err">permission denied</span>`;
-      return;
-    }
+  const granted = await chrome.permissions.request({ origins: [`${serverUrl}/*`] });
+  if (!granted) {
+    $("status").innerHTML = `<span class="err">permission denied</span>`;
+    return;
   }
   await chrome.storage.local.set({ serverUrl, secret });
   await syncNow();

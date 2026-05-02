@@ -50,9 +50,18 @@
       <button id="enableBtn">enable push</button>
       <button class="ghost" id="testBtn">send test push</button>
       <button class="ghost" id="pollBtn">poll now</button>
+      <button class="ghost" id="shareBtn">share to phone</button>
       <button class="ghost" id="refreshBtn">refresh</button>
     </div>
     <div class="err" id="err"></div>
+  </div>
+
+  <div class="card" id="shareCard" style="display:none">
+    <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">share this dashboard to your phone</div>
+    <div id="shareUrl" style="word-break:break-all;font-family:ui-monospace,monospace;font-size:0.8rem;background:#fff9f0;padding:8px;border-radius:8px;margin-bottom:8px"></div>
+    <div id="shareQR" style="text-align:center;margin-bottom:8px"></div>
+    <div id="shareWarn" style="font-size:0.8rem;color:var(--warn)"></div>
+    <div style="font-size:0.75rem;color:var(--light);margin-top:8px">on your phone: scan the QR, then tap "enable push" on the page that opens.</div>
   </div>
 
   <div class="card">
@@ -189,6 +198,25 @@ document.getElementById('enableBtn').onclick = enablePush;
 document.getElementById('testBtn').onclick = testPush;
 document.getElementById('pollBtn').onclick = pollNow;
 document.getElementById('refreshBtn').onclick = () => { refreshState(); refreshDiary(true); };
+
+document.getElementById('shareBtn').onclick = async () => {
+  const card = document.getElementById('shareCard');
+  if (card.style.display !== 'none') { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const url = window.location.origin;
+  document.getElementById('shareUrl').textContent = url;
+  const warn = document.getElementById('shareWarn');
+  if (/^https?:\/\/(localhost|127\.)/.test(url)) {
+    warn.textContent = "your phone can't reach localhost. expose the server with `ngrok http 3000` and reload the dashboard at the ngrok URL, then come back here.";
+  } else if (url.startsWith('http://')) {
+    warn.textContent = "plain HTTP — push subscription will be rejected by mobile browsers. use ngrok or another HTTPS tunnel.";
+  } else {
+    warn.textContent = '';
+  }
+  const QRCode = (await import('https://esm.sh/qrcode@1.5.3')).default;
+  const dataUrl = await QRCode.toDataURL(url, { width: 220, margin: 1, color: { dark: '#FF9B85', light: '#FFF9F0' } });
+  document.getElementById('shareQR').innerHTML = `<img src="${dataUrl}" width="220" height="220" alt="QR code for ${url}">`;
+};
 
 async function refreshSubs() {
   try {

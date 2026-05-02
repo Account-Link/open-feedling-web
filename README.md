@@ -32,7 +32,7 @@ A community deployment (where users install a published extension and point it a
 ## Quickstart
 
 ```bash
-git clone https://github.com/socrates1024/openfeedling.git
+git clone https://github.com/teleport-computer/open-feedling-web.git
 cd openfeedling
 cp .env.example .env
 
