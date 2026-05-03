@@ -2,8 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "e2e.spec.ts",
+  testMatch: /(e2e|extension-only)\.spec\.ts$/,
   timeout: 90_000,
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  reporter: [["list"]],
   use: { trace: "retain-on-failure" },
+  outputDir: "/tmp/pw-out",
 });

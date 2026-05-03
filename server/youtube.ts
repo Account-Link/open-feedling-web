@@ -1,7 +1,8 @@
-// Direct YouTube InnerTube client. Uses the SAPISIDHASH auth scheme that the YouTube web
-// app itself uses for /youtubei/v1/* — derived from oauth3/yt-testing/test_tee_yt.sh.
-// The shorts/non-shorts parser is lifted from the yt-shorts-v3 capability code in
-// oauth3/yt-testing/setup_short_check.sh.
+// Fetches youtube.com/feed/history as HTML and parses the embedded ytInitialData.
+// The InnerTube `/youtubei/v1/browse?browseId=FEhistory` endpoint returns a stale
+// view (no "Today" section even when the rendered page has one) — the HTML path
+// matches what the user sees in their tab. No JS execution required since
+// ytInitialData is already serialized into the page.
 
 export interface ShortCheckResult {
   watching: boolean;
@@ -13,18 +14,7 @@ export interface ShortCheckResult {
   elapsed: string;
 }
 
-const CLIENT_VERSION = "2.20250101.00.00";
-
-async function sapisidHash(sapisid: string): Promise<string> {
-  const ts = Math.floor(Date.now() / 1000);
-  const buf = await crypto.subtle.digest(
-    "SHA-1",
-    new TextEncoder().encode(`${ts} ${sapisid} https://www.youtube.com`),
-  );
-  const hex = Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `SAPISIDHASH ${ts}_${hex}`;
-}
+const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 function parseHistory(data: any): { shorts: { id: string; title: string }[]; videos: number } {
   const tabs = data?.contents?.twoColumnBrowseResultsRenderer?.tabs ?? [];
@@ -34,53 +24,46 @@ function parseHistory(data: any): { shorts: { id: string; title: string }[]; vid
   for (const section of sections) {
     const items = section?.itemSectionRenderer?.contents ?? [];
     for (const item of items) {
-      const v = item.videoRenderer, lv = item.lockupViewModel;
-      if (!v && !lv) continue;
-      const overlay = v?.thumbnailOverlays ?? [];
-      const isShort =
-        overlay.some((o: any) => o.thumbnailOverlayTimeStatusRenderer?.style === "SHORTS") ||
-        !!lv?.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel
-          ?.metadataRows?.some((r: any) =>
-            r.metadataParts?.some((p: any) => p.text?.content?.includes("Short"))
-          );
-      if (isShort) {
-        const id = v?.videoId ?? lv?.contentId ?? "";
-        const title = v?.title?.runs?.[0]?.text
-          ?? lv?.metadata?.lockupMetadataViewModel?.title?.content
-          ?? "";
-        shorts.push({ id, title });
-      } else {
-        videos++;
+      if (item.reelShelfRenderer) {
+        for (const reel of item.reelShelfRenderer.items ?? []) {
+          const slv = reel.shortsLockupViewModel;
+          if (!slv) continue;
+          const id = slv.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId ?? "";
+          const title = slv.overlayMetadata?.primaryText?.content ?? "";
+          shorts.push({ id, title });
+        }
+        continue;
       }
+      const v = item.videoRenderer;
+      if (v) {
+        const isShort = (v.thumbnailOverlays ?? []).some((o: any) =>
+          o.thumbnailOverlayTimeStatusRenderer?.style === "SHORTS");
+        if (isShort) shorts.push({ id: v.videoId ?? "", title: v.title?.runs?.[0]?.text ?? "" });
+        else videos++;
+        continue;
+      }
+      if (item.lockupViewModel) videos++;
     }
   }
   return { shorts, videos };
 }
 
 export async function shortCheck(cookies: Record<string, string>): Promise<ShortCheckResult> {
-  const sapisid = cookies["SAPISID"] ?? cookies["__Secure-3PAPISID"];
-  if (!sapisid) throw new Error("missing SAPISID — extension hasn't synced yet, or session expired");
-
   const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
-  const r = await fetch("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false", {
-    method: "POST",
+  const r = await fetch("https://www.youtube.com/feed/history", {
     headers: {
-      "Authorization": await sapisidHash(sapisid),
-      "Content-Type": "application/json",
-      "Origin": "https://www.youtube.com",
       "Cookie": cookieHeader,
-      "X-Youtube-Client-Name": "1",
-      "X-Youtube-Client-Version": CLIENT_VERSION,
+      "User-Agent": UA,
+      "Accept": "text/html,application/xhtml+xml",
+      "Accept-Language": "en-US,en;q=0.9",
     },
-    body: JSON.stringify({
-      context: { client: { clientName: "WEB", clientVersion: CLIENT_VERSION } },
-      browseId: "FEhistory",
-    }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!r.ok) throw new Error(`youtube ${r.status}: ${(await r.text()).slice(0, 200)}`);
-
-  const data = await r.json();
+  if (!r.ok) throw new Error(`youtube history ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const html = await r.text();
+  const m = html.match(/var ytInitialData\s*=\s*(\{[\s\S]+?\});\s*<\/script>/);
+  if (!m) throw new Error("ytInitialData not found — cookies likely invalid");
+  const data = JSON.parse(m[1]);
   const tracking = data?.responseContext?.serviceTrackingParams ?? [];
   const loggedIn = tracking.some((p: any) =>
     p.params?.some((pp: any) => pp.key === "logged_in" && pp.value === "1")
@@ -89,7 +72,7 @@ export async function shortCheck(cookies: Record<string, string>): Promise<Short
 
   const { shorts, videos } = parseHistory(data);
   return {
-    watching: false, // handler computes from snapshot delta
+    watching: false,
     newShorts: 0,
     shortsCount: shorts.length,
     videosToday: videos,

@@ -60,10 +60,14 @@ export async function tick(): Promise<{ watching: boolean; skipped?: string }> {
 
   const prevSnaps = recentSnapshots();
   const prevSnap = prevSnaps.length ? prevSnaps[prevSnaps.length - 1] : null;
-  const countDelta = prevSnap ? snap.shortsCount - prevSnap.shortsCount : 0;
-  const hasActivity = countDelta > 0;
+  const prevIds = new Set<string>(
+    ((prevSnap as any)?.shorts ?? []).map((s: any) => s.id).filter(Boolean),
+  );
+  const currentShorts = ((snap as any).shorts ?? []) as { id: string; title: string }[];
+  const newShorts = !prevSnap ? 0 : currentShorts.filter((s) => s.id && !prevIds.has(s.id)).length;
+  const hasActivity = newShorts > 0;
   snap.watching = hasActivity;
-  snap.newShorts = Math.max(0, countDelta);
+  snap.newShorts = newShorts;
 
   await addSnapshot(snap);
 
@@ -73,7 +77,7 @@ export async function tick(): Promise<{ watching: boolean; skipped?: string }> {
   updateSession(hasActivity);
 
   console.log(
-    `[tick] count=${snap.shortsCount} delta=${countDelta} active=${hasActivity} ` +
+    `[tick] count=${snap.shortsCount} new=${newShorts} active=${hasActivity} ` +
     `cumulative=${cumulativePolls()} state=${state.stateCode} energy=${state.energy}`,
   );
 
