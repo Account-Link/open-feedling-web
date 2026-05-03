@@ -111,14 +111,21 @@ async function vapidJwt(privateJwk, audience, sub) {
 export async function sendWebPush(subscription, vapid, ttl = 60) {
   const audience = new URL(subscription.endpoint).origin;
   const jwt = await vapidJwt(vapid.privateJwk, audience);
-  const r = await fetch(subscription.endpoint, {
-    method: "POST",
-    headers: {
-      "Authorization": `vapid t=${jwt}, k=${vapid.publicB64}`,
-      "TTL": String(ttl),
-    },
-  });
-  return { ok: r.ok, status: r.status };
+  let r;
+  try {
+    r = await fetch(subscription.endpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `vapid t=${jwt}, k=${vapid.publicB64}`,
+        "TTL": String(ttl),
+      },
+    });
+  } catch (e) {
+    return { ok: false, error: `fetch failed: ${e.message || e} (host_permission missing for ${audience}?)` };
+  }
+  if (r.ok) return { ok: true, status: r.status };
+  const body = await r.text().catch(() => "");
+  return { ok: false, status: r.status, error: `push service ${r.status}: ${body.slice(0, 200) || r.statusText}` };
 }
 
 // Polls an ntfy topic once. Returns parsed JSON body (the subscription
