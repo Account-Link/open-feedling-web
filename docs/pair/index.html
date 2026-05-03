@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OpenFeedling · pair phone</title>
+<style>
+  :root { --bg:#FFF9F0; --card:#fff; --primary:#FF9B85; --text:#4A4A4A; --light:#8A8A8A; --ok:#2a8; --err:#c33; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,sans-serif; min-height:100vh; }
+  body { padding:24px 16px; }
+  .wrap { max-width:480px; margin:0 auto; }
+  .cat { font-size:4rem; text-align:center; margin:8px 0; }
+  h1 { color:var(--primary); font-size:1.6rem; text-align:center; margin-bottom:8px; }
+  .sub { text-align:center; color:var(--light); font-size:0.9rem; margin-bottom:20px; }
+  .card { background:var(--card); border-radius:18px; padding:20px; box-shadow:0 4px 24px rgba(255,155,133,0.12); margin-bottom:14px; line-height:1.5; }
+  .card p { margin-bottom:10px; }
+  .card p:last-child { margin-bottom:0; }
+  .card b { color:var(--primary); }
+  ul { padding-left:20px; }
+  ul li { margin-bottom:4px; font-size:0.95rem; }
+  button { background:var(--primary); color:#fff; border:0; padding:14px 20px; border-radius:12px; cursor:pointer; font-size:1.05rem; font-weight:600; width:100%; margin-top:10px; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  .status { padding:12px; border-radius:10px; text-align:center; font-size:0.95rem; margin-top:10px; }
+  .status.ok { background:#e6f5ec; color:var(--ok); }
+  .status.err { background:#fde0e0; color:var(--err); }
+  .topic { font-family:ui-monospace,monospace; font-size:0.75rem; color:var(--light); word-break:break-all; }
+  .foot { text-align:center; color:var(--light); font-size:0.75rem; margin-top:16px; }
+  .foot a { color:var(--light); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cat">🐈</div>
+  <h1>OpenFeedling on this phone</h1>
+  <div class="sub">A paired browser is asking to send you doomscroll alerts.</div>
+
+  <div class="card">
+    <p>You scanned a QR from an OpenFeedling browser extension running on a laptop. Tapping <b>Subscribe</b> below will:</p>
+    <ul>
+      <li>Register a tiny service worker on this page so notifications can wake your browser</li>
+      <li>Ask the browser for permission to show notifications</li>
+      <li>Post your subscription back to the extension via a one-time mailbox at <a href="https://ntfy.sh" target="_blank">ntfy.sh</a></li>
+    </ul>
+    <p>The extension will only notify you when it detects a long YouTube Shorts streak — no other content. You can revoke this anytime in your phone's site-notification settings.</p>
+  </div>
+
+  <div class="card">
+    <button id="subscribe">Subscribe to alerts</button>
+    <div id="status"></div>
+    <div class="topic" id="topic"></div>
+  </div>
+
+  <div class="foot">
+    <a href="../">openfeedling</a> · <a href="../privacy.html">privacy</a>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const topic = params.get("topic");
+  const pk = params.get("pk");
+  $("topic").textContent = topic ? `topic: ${topic}` : "(no topic in URL — invalid pair link)";
+
+  function setStatus(text, kind) {
+    const s = $("status");
+    s.textContent = text;
+    s.className = "status " + (kind || "");
+  }
+
+  function urlBase64ToUint8Array(b64) {
+    const pad = "=".repeat((4 - b64.length % 4) % 4);
+    const b = (b64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
+  }
+
+  function bufToB64Url(buf) {
+    let s = "";
+    const v = new Uint8Array(buf);
+    for (const b of v) s += String.fromCharCode(b);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  if (!topic || !pk) {
+    $("subscribe").disabled = true;
+    setStatus("This pair link is incomplete. Re-scan the QR from your extension.", "err");
+    return;
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    $("subscribe").disabled = true;
+    setStatus("This browser doesn't support web push.", "err");
+    return;
+  }
+
+  $("subscribe").onclick = async () => {
+    $("subscribe").disabled = true;
+    setStatus("registering service worker…");
+    try {
+      const reg = await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.ready;
+      setStatus("requesting notification permission…");
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") throw new Error("notification permission " + perm);
+      setStatus("subscribing to push…");
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(pk),
+      });
+      const subJson = sub.toJSON();
+      const payload = {
+        endpoint: subJson.endpoint,
+        keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
+      };
+      setStatus("delivering subscription to extension…");
+      const r = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Title": "openfeedling-pair" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error("ntfy " + r.status);
+      setStatus("✓ Paired. Notifications are on. You can close this tab.", "ok");
+      $("subscribe").textContent = "Done";
+    } catch (e) {
+      $("subscribe").disabled = false;
+      setStatus(`error: ${e.message}`, "err");
+    }
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,7 @@
-import { fetchHistory, parseHistory, snapshotFromSections, newShortsCount } from "./lib.js";
+import {
+  fetchHistory, parseHistory, snapshotFromSections, newShortsCount,
+  getOrCreateVapidKeypair, sendWebPush,
+} from "./lib.js";
 
 const SYNC_ALARM = "openfeedling-sync";
 const POLL_ALARM = "openfeedling-poll";
@@ -71,7 +74,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }
     return false;
   }
+  if (msg?.action === "test-phone-push") {
+    pushPhone().then((r) => sendResponse(r)).catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+    return true;
+  }
 });
+
+async function pushPhone() {
+  const { phoneSub } = await chrome.storage.local.get(["phoneSub"]);
+  if (!phoneSub) return { ok: false, error: "no phone paired" };
+  const vapid = await getOrCreateVapidKeypair();
+  return await sendWebPush(phoneSub, vapid);
+}
 
 async function refreshSnapshot() {
   try {
@@ -109,6 +123,7 @@ async function maybeNotify(curr, prev) {
       message: `${nextStreak} minutes of shorts in a row. Cat says: please.`,
       priority: 1,
     });
+    pushPhone().catch((e) => console.warn("[push-phone] failed:", e));
     nextFired = true;
   }
   if (nextStreak === 0) nextFired = false;

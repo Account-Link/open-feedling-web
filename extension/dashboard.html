@@ -25,6 +25,15 @@
   .item { padding:8px 0; border-bottom:1px solid #f3eee6; line-height:1.35; font-size:0.92rem; }
   .item:last-child { border-bottom:0; }
   .foot { text-align:center; color:var(--light); font-size:0.75rem; margin-top:24px; }
+  .phone-title { font-weight:600; margin-bottom:8px; }
+  .phone-status { font-size:0.85rem; color:var(--light); margin-bottom:10px; }
+  .phone-status.ok { color:var(--ok); }
+  .phone-status.err { color:var(--err); }
+  .qr-wrap { text-align:center; margin:8px 0; }
+  .qr-wrap img { width:220px; height:220px; image-rendering:pixelated; }
+  .qr-link { font-family:ui-monospace,monospace; font-size:0.7rem; color:var(--light); word-break:break-all; margin-top:6px; text-align:center; }
+  .phone-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .phone-actions button { flex:1; min-width:120px; }
 </style>
 </head>
 <body>
@@ -44,12 +53,19 @@
     </div>
   </div>
 
+  <div class="card" id="phoneCard">
+    <div class="phone-title">📱 Share to phone</div>
+    <div class="phone-status" id="phoneStatus">checking…</div>
+    <div id="phoneBody"></div>
+  </div>
+
   <div class="card" id="historyCard">
     <div id="history" class="err">loading watch history...</div>
   </div>
 
   <div class="foot">openfeedling · runs entirely in your browser</div>
 </div>
+<script src="vendor/qrcode.js"></script>
 <script type="module" src="dashboard.js"></script>
 </body>
 </html>
