@@ -56,6 +56,11 @@ $("dash").onclick = () => {
   window.close();
 };
 
+$("pairPhone").onclick = () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html#pair") });
+  window.close();
+};
+
 $("notify").onchange = async (e) => {
   const enabled = e.target.checked;
   await chrome.storage.local.set({ notifyEnabled: enabled });
@@ -94,8 +99,12 @@ $("save").onclick = async () => {
 };
 
 (async () => {
-  const { notifyEnabled, lastSnapshot } = await chrome.storage.local.get(["notifyEnabled", "lastSnapshot"]);
+  const { notifyEnabled, lastSnapshot, phoneSub } = await chrome.storage.local.get(["notifyEnabled", "lastSnapshot", "phoneSub"]);
   $("notify").checked = !!notifyEnabled;
+  if (phoneSub) {
+    $("pairPhone").textContent = "📱 Phone paired — re-pair";
+    $("pairedNote").textContent = "✓ a phone is paired";
+  }
   setPill({ snap: lastSnapshot || null, refreshing: !lastSnapshot || Date.now() - lastSnapshot.at > 30_000 });
   if (!lastSnapshot || Date.now() - lastSnapshot.at > 30_000) {
     try {
