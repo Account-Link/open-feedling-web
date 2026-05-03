@@ -186,6 +186,30 @@ test("share-to-phone: paired state shows test/forget; forget clears storage", as
   await context.close();
 });
 
+test("dashboard #pair deep link auto-starts pairing", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html#pair`);
+  await expect(dash.locator(".qr-wrap img")).toBeVisible({ timeout: 10_000 });
+  const status = await dash.locator("#phoneStatus").innerText();
+  expect(status).toMatch(/waiting for phone/);
+  await context.close();
+});
+
+test("OpenRouter key placeholder persists", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
+  await expect(dash.locator("#openrouterKey")).toBeVisible({ timeout: 10_000 });
+  await dash.fill("#openrouterKey", "sk-or-v1-test-placeholder-key");
+  await dash.click("#saveAdvanced");
+  await expect(dash.locator("#advancedStatus")).toContainText("saved", { timeout: 5_000 });
+  await dash.reload();
+  const v = await dash.locator("#openrouterKey").inputValue();
+  expect(v).toBe("sk-or-v1-test-placeholder-key");
+  await context.close();
+});
+
 test("notifyEnabled flag persists across popup → dashboard", async () => {
   const { context, extensionId } = await bootContext();
   const popup = await context.newPage();

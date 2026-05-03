@@ -63,6 +63,17 @@
     <div id="history" class="err">loading watch history...</div>
   </div>
 
+  <div class="card" id="advancedCard">
+    <div class="phone-title">⚙ Advanced</div>
+    <div class="phone-status">Coming soon: pasting an OpenRouter API key here will unlock LLM-generated push notifications (e.g. "you watched 7 minutes of skateboarding fail compilations and a video about whether birds are real, the cat is genuinely worried"). Stored locally; no effect yet.</div>
+    <label style="display:block;font-size:0.78rem;color:#888;margin:8px 0 4px">OpenRouter API key</label>
+    <input id="openrouterKey" type="password" placeholder="sk-or-v1-..." style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;font-family:ui-monospace,monospace">
+    <div class="phone-actions" style="margin-top:10px">
+      <button class="ghost" id="saveAdvanced">Save</button>
+    </div>
+    <div class="phone-status" id="advancedStatus" style="margin-top:6px"></div>
+  </div>
+
   <div class="foot">openfeedling · runs entirely in your browser</div>
 </div>
 <script src="vendor/qrcode.js"></script>

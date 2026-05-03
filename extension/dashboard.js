@@ -158,15 +158,31 @@ async function loadPhone() {
     renderQRBody(pairTopic, pairUrl);
     setPhoneStatus("resuming — waiting for phone");
     pollLoop(pairTopic);
+  } else if (location.hash === "#pair") {
+    // Deep link from popup's "Pair phone" button — skip the unpaired state, go straight to QR
+    startPairing();
   } else {
     setPhoneStatus("not paired");
     renderUnpaired();
   }
 }
 
+async function loadAdvanced() {
+  const { openrouterKey } = await chrome.storage.local.get(["openrouterKey"]);
+  $("openrouterKey").value = openrouterKey || "";
+}
+
+$("saveAdvanced")?.addEventListener("click", async () => {
+  const key = $("openrouterKey").value.trim();
+  await chrome.storage.local.set({ openrouterKey: key });
+  $("advancedStatus").textContent = key ? "✓ saved (no effect yet — feature in flight)" : "cleared";
+  $("advancedStatus").style.color = "#2a8";
+});
+
 (async () => {
   const { lastSnapshot } = await chrome.storage.local.get(["lastSnapshot"]);
   if (lastSnapshot) render(lastSnapshot);
   loadPhone();
+  loadAdvanced();
   refresh();
 })();
