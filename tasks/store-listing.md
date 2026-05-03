@@ -1,15 +1,14 @@
-# Chrome Web Store listing — OpenFeedling
+# Chrome Web Store listing — OpenFeedling v0.2.0
 
 > Submission-ready copy and checklist. Bring this to the Developer Dashboard at https://chrome.google.com/webstore/devconsole.
 
 ## Pre-submission checklist
 
-- [ ] Privacy policy hosted publicly. After enabling GitHub Pages from `/docs` on the repo, the URL will be: `https://teleport-computer.github.io/open-feedling-web/privacy.html`
-- [ ] `extension/manifest.json` reviewed (already updated: dropped `<all_urls>` from optional perms; replaced with specific patterns)
-- [ ] Tagged release on GitHub matching the version in `manifest.json` (v0.1.0)
+- [ ] Privacy policy is live at `https://teleport-computer.github.io/open-feedling-web/privacy.html`
+- [ ] `extension/manifest.json` reviewed (v0.2.0; `notifications` permission added; push-service hosts added)
+- [ ] Tagged release on GitHub matching the version in `manifest.json` (v0.2.0)
 - [ ] Screenshots captured (see "Screenshots" section below)
-- [ ] Icon assets prepared (see "Assets" section below)
-- [ ] `extension/` zipped (no `node_modules`, no `.DS_Store`) for upload
+- [ ] `openfeedling-extension-v0.2.0.zip` built (see "Submission packaging")
 
 ## Listing fields
 
@@ -20,39 +19,41 @@ OpenFeedling
 
 ### Summary / short description (≤ 132 chars)
 ```
-Sync your YouTube cookies to your self-hosted OpenFeedling server so it can break your shorts doomscrolling loop.
+Cat-themed nudge to break your YouTube Shorts doomscroll. Runs locally in your browser; optional phone notifications.
 ```
 
 ### Detailed description
 
 ```
-OpenFeedling is the open-source counterpart to the iOS Feedling app — a "live indicator" that gently breaks the YouTube Shorts doomscroll loop with web push notifications.
+OpenFeedling is a small browser extension that watches your YouTube history and gives you a gentle nudge when you've been scrolling Shorts too long. The cat gets tired so you don't have to.
 
-This extension is the cookie-sync companion to a self-hosted OpenFeedling server. The server polls your YouTube watch history on its own schedule and sends a push notification when it detects sustained shorts scrolling. Because the server runs independently, the loop break still fires when your laptop is closed and you're scrolling on your phone.
+HOW IT WORKS
 
-WHAT THIS EXTENSION DOES
+Click the OpenFeedling icon and the popup shows your shorts-watched-today count along with the rest of your YouTube history. There's no setup, no account, no server to host — the extension reads your YouTube watch history directly using the cookies your browser already has.
 
-• Reads your YouTube/Google session cookies (the small set needed for authenticated history-API calls)
-• Sends them, over HTTPS, to a server URL that YOU configure
-• Re-syncs every 30 minutes and whenever your cookies change
+Tick "Doomscroll notifications" and the extension polls your watch history every minute. After five consecutive minutes of new Shorts, your browser shows a native notification: "5 minutes of shorts. Cat says: please." That's the whole loop.
 
-That's it. There is no analytics, no central account, no third-party data sharing.
+OPTIONAL: PAIR YOUR PHONE
 
-WHAT YOU NEED
+If you want the same nudge on your phone, click "Pair phone" in the popup. The dashboard generates a QR code; scan it with your phone, tap Subscribe, and you're done. From then on, the extension also delivers the same notification to your phone via web push.
 
-• A self-hosted OpenFeedling server (run locally, on a VPS, on Vercel, on Phala/dstack, or anywhere a Deno or Docker process can live). Setup instructions: https://github.com/teleport-computer/open-feedling-web
+The phone-pairing handshake uses a one-time public ntfy.sh topic; ongoing notifications go directly from your extension to your phone's push service via VAPID. No third party stays in the loop.
 
-TRUST MODEL
+OPTIONAL: BRING-YOUR-OWN SERVER
 
-This is a self-host kit. You run both the server and the extension; you control your cookies end-to-end. No third-party trust needed.
-
-OPEN SOURCE
-
-MIT-licensed. Full source at https://github.com/teleport-computer/open-feedling-web. Tagged releases match the version distributed here; reproducible-build instructions in the repo.
+Power users can run an included Deno server on Vercel, Render, or their own VPS for cross-device cookie sync (the server polls on its own schedule even when your laptop is asleep). Configurable in the extension's advanced settings. Most users do not need this.
 
 PRIVACY
 
-Privacy policy: https://teleport-computer.github.io/open-feedling-web/privacy.html
+In the default extension-only mode with no phone paired, no data leaves your browser. With a phone paired, ~300 bytes of push-subscription metadata transit ntfy.sh once at pairing time. With a BYO server, your YouTube cookies go to a server you operate. Nothing else, ever — no analytics, no central account, no third-party data sharing.
+
+OPEN SOURCE
+
+MIT-licensed. Full source at https://github.com/teleport-computer/open-feedling-web. Tagged releases match the version distributed here.
+
+PRIVACY POLICY
+
+https://teleport-computer.github.io/open-feedling-web/privacy.html
 ```
 
 ### Category
@@ -65,7 +66,7 @@ English
 ## Single-purpose statement
 
 ```
-Synchronize your YouTube session cookies to a self-hosted OpenFeedling server you control, so that server can monitor your shorts-watching activity on your behalf and send you Web Push notifications when sustained scrolling is detected.
+Detect sustained YouTube Shorts watching by reading the user's own YouTube history (via the user's existing browser cookies, locally), and notify the user via a browser notification — and optionally a paired phone — so they can break the doomscroll loop.
 ```
 
 ## Permission justifications
@@ -74,37 +75,47 @@ Paste each into the corresponding field in the "Privacy practices" tab of the De
 
 ### `cookies` permission
 ```
-The extension's sole purpose is to forward the user's YouTube/Google authentication cookies to a server they themselves run. This requires reading the named session cookies (SID, HSID, SAPISID, etc.) for youtube.com and google.com. No other cookies are accessed; no cookies are stored or transmitted anywhere outside the user's own server.
+The extension reads the user's own YouTube/Google session cookies for two purposes: (1) so the extension's own popup/dashboard can fetch the user's YouTube watch history (this is the primary feature), and (2) optionally — only when the user configures a BYO server in advanced settings — to forward those same cookies to a server the user operates. The extension reads only the named session cookies (SID, HSID, SAPISID, etc.) for youtube.com and google.com. No cookies are stored by the extension or transmitted anywhere except either (i) the user's own browser fetch to youtube.com, or (ii) a server URL the user themselves configured.
 ```
 
 ### `storage` permission
 ```
-Stores two pieces of user-configured data locally via chrome.storage.local: (1) the URL of the user's self-hosted OpenFeedling server, and (2) the shared secret the server uses to authenticate cookie uploads. No other data is persisted.
+Stores via chrome.storage.local: the user's most recent YouTube history snapshot (so the popup is instant), a per-install VAPID keypair used to authenticate the extension to web-push services for paired phones, the paired phone's push subscription endpoint (~300 bytes), and (only if the user configures BYO server) the server URL and shared secret. No browsing history, identifiers, or analytics.
 ```
 
 ### `alarms` permission
 ```
-Schedules a periodic 30-minute alarm to re-sync cookies to the user's server, so the server's YouTube session stays fresh enough to call the InnerTube history API.
+Schedules two periodic alarms: a one-minute alarm to poll the user's own YouTube history (so the doomscroll detector can run while the popup is closed), and a 30-minute alarm to re-sync cookies to the user's BYO server when configured.
+```
+
+### `notifications` permission
+```
+The extension's primary feature is a notification fired by chrome.notifications.create() when the user has been watching YouTube Shorts continuously for the configured threshold (default: 5 minutes of new Shorts in a row). The user opts in via the "Doomscroll notifications" toggle in the popup; with the toggle off, no notifications are ever shown.
 ```
 
 ### Host permission `https://*.youtube.com/*`
 ```
-Required by the chrome.cookies API to read the user's YouTube session cookies for upload to their own server.
+The extension fetches the user's own YouTube watch-history page (https://www.youtube.com/feed/history) directly from the extension's service worker, with the user's existing browser cookies, and parses the embedded ytInitialData. This is how the extension counts shorts.
 ```
 
 ### Host permission `https://*.google.com/*`
 ```
-YouTube authentication cookies (SID, SAPISID, etc.) are scoped to .google.com as well as .youtube.com. Both domains must be readable to capture the complete authenticated session.
+YouTube authentication cookies (SID, SAPISID, etc.) are scoped to .google.com as well as .youtube.com. Both domains must be readable so the user's authenticated YouTube session is complete when the extension fetches the watch-history page.
+```
+
+### Host permission `https://fcm.googleapis.com/*`, `https://updates.push.services.mozilla.com/*`, `https://web.push.apple.com/*`
+```
+When the user pairs a phone, the extension delivers web-push notifications directly to the user's own push subscription endpoint, which lives on one of the standard browser push services (FCM for Chrome/Edge, Mozilla autopush for Firefox, Apple for Safari). The fetch is signed with the extension's VAPID JWT and only targets the specific subscription endpoint the user paired. No other URL on these hosts is accessed.
 ```
 
 ### Host permission `http://localhost/*`, `http://127.0.0.1/*`
 ```
-Pre-granted access to localhost is needed so users can develop against and test their OpenFeedling server running on their own machine without an extra runtime prompt. These patterns only allow the extension to talk to its own user's localhost — they do not grant access to any external site.
+Pre-granted access to localhost so users running a local OpenFeedling server in the optional BYO-server mode don't see an extra runtime prompt. These patterns only allow the extension to talk to the user's own localhost.
 ```
 
 ### Optional host permission `https://*/*`
 ```
-The user types the URL of their self-hosted server (which can have any HTTPS hostname) into the extension popup. The extension requests permission for that specific origin at runtime via chrome.permissions.request() — only for the URL the user has explicitly entered. The extension never accesses any URL the user has not configured.
+If the user opts into the BYO-server flow and types the URL of their self-hosted server (which can have any HTTPS hostname), the extension requests permission for that specific origin at runtime via chrome.permissions.request() — only for the URL the user has explicitly entered. The extension never accesses any URL the user has not configured.
 ```
 
 ## Data handling form (Privacy practices tab)
@@ -114,10 +125,10 @@ For each category, the answer is **NO** unless noted:
 - Personally identifiable information: NO
 - Health information: NO
 - Financial and payment information: NO
-- Authentication information: **YES** — "Authentication cookies for the user's own YouTube account, transmitted only to a server URL the user configures."
+- Authentication information: **YES** — "Authentication cookies for the user's own YouTube account, used by the extension's own service worker to fetch the user's watch history page; transmitted to a third party only if the user explicitly configures a BYO server URL."
 - Personal communications: NO
 - Location: NO
-- Web history: NO (the extension itself reads only cookies, not browsing history; the server reads YouTube history server-side using the synced cookies, but that happens on the user's own infrastructure outside this extension)
+- Web history: **YES** — "The user's own YouTube watch history, read by the extension via an authenticated fetch to youtube.com/feed/history. Held only in chrome.storage.local; not transmitted anywhere."
 - User activity: NO
 - Website content: NO
 
@@ -132,74 +143,45 @@ For sevenfloor and team preview: **Unlisted**.
 - Anyone with the install URL can install
 - Not searchable in the store
 - Real one-click store-install UX (no "developer mode" warning)
-- Flip to Public later when local-mode ext lands and listing is dialed
+- Flip to Public later when v0.2 is broadly tested
 
 ## Screenshots needed
 
 At least 1 required, up to 5 allowed. Recommended size: **1280×800**.
 
-Capture in this order, save as PNG:
+Capture in this order, save as PNG into `docs/screenshots/`:
 
-1. **`screenshot-1-popup.png`** — extension popup with example server URL filled in and "✓ synced N cookies" status visible. Use a synthetic example URL like `https://my-feedling.fly.dev`.
-2. **`screenshot-2-dashboard.png`** — `http://localhost:3000` dashboard showing the cat (chill state), energy bar, recent shorts count, push enabled indicator.
-3. **`screenshot-3-notification.png`** — actual macOS/Chrome notification banner from a test push: "5 minutes of solid scrolling. Cat noticed."
-4. **`screenshot-4-share-qr.png`** — dashboard with the "share to phone" QR code expanded, ready for cross-device push setup.
-5. *(Optional)* **`screenshot-5-architecture.png`** — a clean diagram of YouTube → server polls → push to devices. Can lift the ASCII one from the README into a proper graphic.
-
-Save them in `docs/screenshots/` so they're versioned with the repo.
+1. **`screenshot-1-popup.png`** — extension popup with the status pill populated ("N shorts today · M in history") and the three controls visible (Open dashboard, Doomscroll notifications, Pair phone).
+2. **`screenshot-2-dashboard.png`** — full dashboard tab (chrome-extension://...) with the cat header, today's shorts count, a populated history list, and the Share-to-phone card.
+3. **`screenshot-3-notification.png`** — a real notification banner from the OS: "5 minutes of shorts. Cat says: please."
+4. **`screenshot-4-pair-qr.png`** — the dashboard's QR code visible during a pair flow, showing "waiting for phone" status.
+5. *(Optional)* **`screenshot-5-architecture.png`** — clean diagram of "extension polls YouTube → detects streak → notifies laptop AND/OR paired phone."
 
 ## Icon assets
 
-`manifest.json` does not currently declare an `icons` block — needs adding before submission. The Web Store listing also requires a 128×128 store icon (separate from the in-Chrome icon).
-
-Need to produce:
-- `extension/icons/icon-16.png`
-- `extension/icons/icon-48.png`
-- `extension/icons/icon-128.png`
-- `docs/store-icon-128.png` (for the listing — same as the 128×128 in-extension one is fine)
-
-Then add to `manifest.json`:
-```json
-"icons": {
-  "16": "icons/icon-16.png",
-  "48": "icons/icon-48.png",
-  "128": "icons/icon-128.png"
-},
-"action": {
-  "default_popup": "popup.html",
-  "default_title": "OpenFeedling",
-  "default_icon": {
-    "16": "icons/icon-16.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
-  }
-}
-```
-
-Suggested icon: a stylized cat 🐈 on the brand peach background (`#FF9B85`). 5 minutes in Figma or a quick vibes-coded SVG → PNG export.
+Already in place at `extension/icons/icon-{16,48,128}.png`. Web Store also wants a 128×128 listing icon (separate from the in-extension icon) — `docs/store-icon-128.png` already exists in the repo from v0.1.
 
 ## Submission packaging
 
 ```bash
-# From repo root, after icons are in place:
+# From repo root
 cd extension
-zip -r ../openfeedling-extension-v0.1.0.zip . \
-  -x '*.DS_Store' -x 'node_modules/*' -x '.git/*'
+git ls-files | zip -X ../openfeedling-extension-v0.2.0.zip -@
 ```
 
-Upload `openfeedling-extension-v0.1.0.zip` to the Developer Dashboard.
+The `git ls-files | zip -@` form ships exactly what's tracked in git — no `.DS_Store`, no editor temp files, no test-install clones.
 
 ## Expected review back-and-forth
 
-- **`https://*/*` host permission** is the most likely flag. The runtime-grant + popup-only-uses-user-typed-URL story addresses it; emphasize this in the justification.
-- **Cookie permission scrutiny** — reviewers may ask for a screencast showing the data flow. Have one ready: 30s of installing, configuring, and seeing the cookies arrive on the server.
-- **Auto-update vs trust model** — not a Web Store concern but worth being ready to articulate in any user-facing FAQ.
+- **`https://*/*` optional host permission** is the most likely flag. The runtime-grant + popup-only-uses-user-typed-URL story addresses it; emphasize this in the justification.
+- **Cookie + history permissions** — reviewers may ask why the extension reads YouTube cookies. Answer: to fetch the user's own watch-history page from inside the user's own browser, which is the entire functional core of the extension. Have a 30s screencast ready of the popup populating with real numbers.
+- **Push service host permissions** — newer in v0.2.0; standard for any web-push extension. The justification copy above frames it correctly.
 
-Typical first-review turnaround: 1-3 business days. Cookie+host-perm extensions sometimes take a week with one round of clarification.
+Typical first-review turnaround: 1-3 business days. Extensions that read auth cookies sometimes take a week with one round of clarification.
 
 ## After approval
 
-- [ ] Tag the repo at `v0.1.0` matching the published version, push the tag
+- [ ] Tag the repo at `v0.2.0` matching the published version, push the tag
 - [ ] Add a "Install from Chrome Web Store" badge to the README pointing at the listing URL
 - [ ] Add the listing URL to `docs/index.md`
-- [ ] Update `tasks/sevenfloor-onboarding.md` to mention the unlisted install URL as the easiest install path
+- [ ] Update onboarding docs to mention the unlisted install URL as the easiest install path
