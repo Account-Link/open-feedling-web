@@ -2,7 +2,7 @@
 title: OpenFeedling
 ---
 
-A self-hostable browser extension + server that watches your YouTube history and sends you a gentle push notification when you've been scrolling shorts too long. The cat gets tired so you don't have to.
+A browser extension that watches your YouTube history and gives you a gentle nudge when you've been scrolling Shorts too long. The cat gets tired so you don't have to.
 
 - **Source code**: [github.com/teleport-computer/open-feedling-web](https://github.com/teleport-computer/open-feedling-web)
 - **License**: MIT
@@ -10,58 +10,56 @@ A self-hostable browser extension + server that watches your YouTube history and
 
 ## How it works
 
-1. Install the OpenFeedling extension in Chrome
-2. Run the OpenFeedling server (your laptop, a VPS, Vercel, or your own dstack)
-3. The extension keeps your YouTube cookies fresh on the server
-4. The server polls YouTube on its own schedule and fires a Web Push when scrolling crosses a threshold
-5. Push lands on whichever device you've subscribed (laptop, phone, or both)
+1. Install the extension. Click its icon — it shows your YouTube watch history right there.
+2. Tick **"Doomscroll notifications"**. The extension polls your history every minute and fires a native browser notification after five consecutive minutes of new Shorts.
+3. Optionally, scan a QR with your phone to also receive the notification on mobile.
 
-The server is the always-on poller, so the loop break still fires when your laptop is closed and you're scrolling on your phone.
+Everything runs locally in your browser. No server to host, no cookies to sync, no tunnels. The optional phone-pairing handshake uses [ntfy.sh](https://ntfy.sh) once at pairing time; ongoing pushes go straight from your extension to your phone's push service via VAPID.
 
-## Run it yourself (~5 minutes, Mac + Chrome)
+## Install (~2 minutes)
 
-You need a Chromium-based browser, [Deno](https://docs.deno.com/runtime/getting_started/installation/), and [git](https://git-scm.com/).
+The Chrome Web Store listing is coming. For now, load the extension from a local clone:
 
 ```bash
-# 1. Install Deno if you don't have it
-brew install deno
-
-# 2. Clone and set up env
 git clone https://github.com/teleport-computer/open-feedling-web.git
-cd open-feedling-web
-deno task gen-vapid > .env
-echo "VAPID_SUBJECT=mailto:test@example.com" >> .env
-echo "EXT_SHARED_SECRET=$(openssl rand -hex 32)" >> .env
-
-# 3. Run the server
-deno task start
-# → listening on http://localhost:3000
 ```
 
-Then in Chrome:
+In Chrome (or any Chromium browser):
 
-1. Go to `chrome://extensions` and toggle **Developer mode** (top right)
-2. Click **Load unpacked** → select the `extension/` folder you just cloned
-3. Click the OpenFeedling icon (pin it via the puzzle-piece menu for sanity)
-4. Paste `http://localhost:3000` into "Server URL", paste your `EXT_SHARED_SECRET` from `.env` into "Shared secret", click **Save & sync now** — popup should report ✓ synced N cookies
-5. Open `http://localhost:3000` → click **enable push** → grant the notification permission
-6. Click **send test push** to confirm it works
-7. Open YouTube, scroll a few shorts. The cat will fill up over the next few minutes.
+1. Open `chrome://extensions` and toggle **Developer mode** (top right).
+2. Click **Load unpacked** and pick the `extension/` folder you just cloned.
+3. Pin the OpenFeedling icon via the puzzle-piece menu.
+4. Click the icon. The popup should populate with your shorts-today / total-in-history count within ~1 second.
 
-### Add your phone (optional)
+That's it. No setup, no config.
 
-Web Push needs HTTPS or `localhost`. Your phone reaches your laptop at plain HTTP, which mobile browsers reject — so you need a tunnel:
+## Turn on notifications
 
-```bash
-brew install ngrok
-ngrok http 3000
-# → https://abc123.ngrok.app
-```
+In the popup, tick **Doomscroll notifications**. From now on, when the extension detects five consecutive minutes of new Shorts in your watch history, your laptop browser shows a native notification: *"5 minutes of shorts. Cat says: please."*
 
-Reload the dashboard at the ngrok URL, re-point the extension at it, click **share to phone** → scan the QR with your phone → tap **enable push** on your phone. Done — you'll get a notification on both devices.
+To test it: open `youtube.com/shorts` and scroll continuously for 5 minutes. (Or click **Open dashboard** → **send test notification** to verify your browser actually shows them.)
+
+## Add your phone (optional)
+
+1. In the popup, click **📱 Pair phone**. A dashboard tab opens with a QR code.
+2. Scan the QR with your phone camera. A page on this site (`/pair/`) explains what's about to happen.
+3. Tap **Subscribe to alerts** on your phone and grant the notification permission.
+4. Within a few seconds the extension picks up the pairing. The dashboard transitions to "✓ phone subscribed".
+5. Click **Send test push** in the dashboard. Your phone should show a real native notification.
+
+The pairing handshake uses a one-time [ntfy.sh](https://ntfy.sh) topic. Once your phone is paired, ongoing pushes go directly from your extension to FCM (or Mozilla autopush, or Apple) using a VAPID-signed JWT — nothing routes through ntfy after pairing.
+
+## BYO server (optional, advanced)
+
+If you want cross-device cookie sync — say, your laptop browser keeps the cookies fresh on a server and the server polls YouTube even when your laptop is asleep — you can run the included Deno server on Vercel, Render, or your own VPS. Click ⚙ in the popup to enter a server URL + shared secret.
+
+Most users don't need this. The default extension-only flow already covers the common case ("I want a nudge when I'm wasting time on this laptop").
 
 ## Trust model
 
-This is a self-host kit — you run both the server and the extension; you control your cookies end-to-end. No third-party trust needed for the data path.
+This extension polls your YouTube history directly from your own browser using your existing session cookies. None of that data leaves your machine unless you opt into one of:
 
-See the [README](https://github.com/teleport-computer/open-feedling-web#trust-model) for details on how this differs from a TEE-attested community deployment.
+- **Phone pairing**: ~300 bytes of push-subscription metadata transit ntfy.sh once at pairing time.
+- **BYO server**: your cookies go to a server you operate.
+
+In the default extension-only flow with no phone paired, no third party touches your data.
