@@ -144,7 +144,19 @@ async function refreshDiary(force = false) {
   try {
     const res = await fetch('api/diary' + (force ? '?force=1' : ''));
     const { diary, error } = await res.json();
-    document.getElementById('diary').textContent = diary || ('(' + (error || 'no diary yet') + ')');
+    const el = document.getElementById('diary');
+    if (diary && !diary.startsWith('(set OPENROUTER_API_KEY')) {
+      el.textContent = diary;
+      return;
+    }
+    const { snaps } = await (await fetch('api/state?limit=20')).json();
+    const seen = new Set();
+    const titles = (snaps || []).slice().reverse().flatMap(s => s.shorts || [])
+      .filter(s => s.id && !seen.has(s.id) && (seen.add(s.id), true))
+      .slice(0, 15).map(s => '• ' + s.title);
+    el.textContent = titles.length
+      ? titles.join('\n')
+      : '(' + (error || 'no shorts yet — scroll some, then poll') + ')';
   } catch (e) { document.getElementById('err').textContent = e.message; }
 }
 
@@ -191,6 +203,7 @@ async function pollNow() {
       ? 'poll error: ' + d.error
       : ('polled: watching=' + d.watching + (d.skipped ? ' (skipped: ' + d.skipped + ')' : ''));
     refreshState();
+    refreshDiary(true);
   } catch (e) { document.getElementById('err').textContent = e.message; }
 }
 
