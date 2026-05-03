@@ -1,8 +1,7 @@
 ---
-title: OpenFeedling Privacy Policy
+title: Privacy Policy
+description: How OpenFeedling handles your data — short version&#58; we don't, you do.
 ---
-
-# OpenFeedling — Privacy Policy
 
 **Effective date:** 2026-05-02
 

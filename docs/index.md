@@ -2,10 +2,6 @@
 title: OpenFeedling
 ---
 
-# OpenFeedling
-
-Open-source YouTube Shorts doomscroll breaker + daily diary.
-
 A self-hostable browser extension + server that watches your YouTube history and sends you a gentle push notification when you've been scrolling shorts too long. The cat gets tired so you don't have to.
 
 - **Source code**: [github.com/teleport-computer/open-feedling-web](https://github.com/teleport-computer/open-feedling-web)
