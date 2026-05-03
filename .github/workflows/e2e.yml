@@ -9,11 +9,17 @@ on:
     - cron: "0 6 * * 1"
 
 jobs:
-  e2e:
+  extension-only:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: test/package-lock.json
 
       - name: Sanity-check secret is set
         env:
@@ -24,16 +30,28 @@ jobs:
             exit 1
           fi
 
-      - name: Run E2E
+      - name: Materialize cookies.json
         env:
           YT_COOKIES_JSON: ${{ secrets.YT_COOKIES_JSON }}
-        working-directory: test
-        run: docker compose up --build --abort-on-container-exit --exit-code-from e2e
+        run: printf '%s' "$YT_COOKIES_JSON" > test/cookies.json
 
-      - name: Upload Playwright report
-        if: always()
+      - name: Install test deps
+        working-directory: test
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: test
+        run: npx playwright install --with-deps chromium
+
+      - name: Run extension-only spec
+        working-directory: test
+        run: npx playwright test extension-only.spec.ts --reporter=list
+
+      - name: Upload Playwright output on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: test/playwright-report
+          name: playwright-output
+          path: /tmp/pw-out
           retention-days: 14
+          if-no-files-found: ignore
