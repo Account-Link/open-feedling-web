@@ -74,6 +74,93 @@ test("dashboard loads + test-notification routes through SW without crashing (re
   await context.close();
 });
 
+test("share-to-phone: Generate QR creates VAPID keys, topic, and renders QR img", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  const errs: string[] = [];
+  dash.on("pageerror", (e) => errs.push(`pageerror: ${e.message}`));
+  dash.on("console", (m) => { if (m.type() === "error") errs.push(`console.error: ${m.text()}`); });
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
+  await expect(dash.locator("#phoneStatus")).toContainText("not paired", { timeout: 15_000 });
+
+  await dash.click("#startPair");
+  await expect(dash.locator(".qr-wrap img")).toBeVisible({ timeout: 5_000 });
+  const qrSrc = await dash.locator(".qr-wrap img").getAttribute("src");
+  expect(qrSrc, "QR should be a data URL").toMatch(/^data:image\//);
+
+  const linkText = await dash.locator(".qr-link").innerText();
+  expect(linkText, "pair URL must include topic and pk").toMatch(/topic=feedling-[a-f0-9]+/);
+  expect(linkText).toMatch(/pk=[A-Za-z0-9_-]+/);
+
+  const stored = await dash.evaluate(() =>
+    chrome.storage.local.get(["pairTopic", "vapidPrivateJwk", "vapidPublicB64"])
+  );
+  expect(stored.pairTopic, "topic stored").toMatch(/^feedling-[a-f0-9]{16}$/);
+  expect(stored.vapidPublicB64, "VAPID public stored").toMatch(/^[A-Za-z0-9_-]+$/);
+  expect(stored.vapidPrivateJwk, "VAPID private JWK stored").toBeTruthy();
+  expect(stored.vapidPrivateJwk.crv, "P-256 curve").toBe("P-256");
+
+  expect(errs, `errors: ${errs.join("\n")}`).toEqual([]);
+  await context.close();
+});
+
+test("share-to-phone: ntfy round-trip — extension picks up a posted subscription", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
+  await expect(dash.locator("#phoneStatus")).toContainText("not paired", { timeout: 15_000 });
+  await dash.click("#startPair");
+  await expect(dash.locator(".qr-wrap img")).toBeVisible({ timeout: 5_000 });
+
+  const stored = await dash.evaluate(() => chrome.storage.local.get(["pairTopic"]));
+  const topic: string = stored.pairTopic;
+  expect(topic).toMatch(/^feedling-/);
+
+  // Simulate the phone POSTing its subscription blob to the ntfy topic
+  const fakeSub = {
+    endpoint: "https://fcm.googleapis.com/fcm/send/round-trip-fake-id-12345",
+    keys: { p256dh: "BHello-test-p256dh-key", auth: "test-auth-secret" },
+  };
+  const post = await fetch(`https://ntfy.sh/${topic}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fakeSub),
+  });
+  expect(post.ok, `ntfy POST should succeed (got ${post.status})`).toBe(true);
+
+  // Extension polls every 3s — give it ~5s to pick up
+  await expect(dash.locator("#phoneStatus")).toContainText("phone subscribed", { timeout: 12_000 });
+  await expect(dash.locator("#testPhone")).toBeVisible();
+  const final = await dash.evaluate(() => chrome.storage.local.get(["phoneSub", "pairTopic"]));
+  expect(final.phoneSub.endpoint).toBe(fakeSub.endpoint);
+  expect(final.pairTopic, "pairTopic should be cleared after pickup").toBeUndefined();
+  await context.close();
+});
+
+test("share-to-phone: paired state shows test/forget; forget clears storage", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
+  // Inject a fake phoneSub directly
+  await dash.evaluate(() => chrome.storage.local.set({
+    phoneSub: {
+      endpoint: "https://fcm.googleapis.com/fcm/send/fake-test-id",
+      keys: { p256dh: "AAA", auth: "BBB" },
+    },
+  }));
+  await dash.reload();
+  await expect(dash.locator("#phoneStatus")).toContainText("phone subscribed", { timeout: 10_000 });
+  await expect(dash.locator("#testPhone")).toBeVisible();
+  await expect(dash.locator("#forgetPhone")).toBeVisible();
+
+  await dash.click("#forgetPhone");
+  await expect(dash.locator("#phoneStatus")).toContainText("not paired", { timeout: 5_000 });
+  const after = await dash.evaluate(() => chrome.storage.local.get(["phoneSub"]));
+  expect(after.phoneSub, "phoneSub should be cleared").toBeUndefined();
+
+  await context.close();
+});
+
 test("notifyEnabled flag persists across popup → dashboard", async () => {
   const { context, extensionId } = await bootContext();
   const popup = await context.newPage();
