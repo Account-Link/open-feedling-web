@@ -4,27 +4,62 @@
 <meta charset="utf-8">
 <title>OpenFeedling</title>
 <style>
-  body { font-family:system-ui,-apple-system,sans-serif; width:320px; padding:14px; font-size:13px; color:#4A4A4A; }
-  h3 { margin:0 0 10px; color:#FF9B85; font-size:1rem; }
-  label { display:block; margin:8px 0 4px; font-size:0.8rem; color:#666; }
-  input { width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:13px; }
-  button { padding:8px 12px; border:0; background:#FF9B85; color:#fff; border-radius:6px; cursor:pointer; width:100%; margin-top:10px; font-weight:600; }
-  button.ghost { background:transparent; color:#FF9B85; border:1px solid #FF9B85; margin-top:6px; }
-  .status { margin-top:10px; font-size:11px; padding:6px 8px; border-radius:6px; background:#f5f5f5; }
-  .ok { color:#2a8; } .err { color:#c33; } .warn { color:#c80; }
-  .foot { margin-top:10px; font-size:10px; color:#aaa; text-align:center; }
+  body { font-family:system-ui,-apple-system,sans-serif; width:300px; padding:14px; margin:0; font-size:13px; color:#4A4A4A; }
+  .header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .cat { font-size:1.6rem; }
+  .title { font-weight:600; color:#FF9B85; flex:1; }
+  .gear { color:#bbb; cursor:pointer; padding:4px 6px; user-select:none; }
+  .gear:hover { color:#FF9B85; }
+  .pill { background:#FFF4ED; padding:10px 12px; border-radius:8px; margin-bottom:10px; font-size:0.85rem; }
+  .pill b { color:#FF9B85; }
+  .pill .age { color:#aaa; font-size:0.75rem; display:block; margin-top:2px; }
+  .pill.err { background:#FDE0E0; color:#c33; }
+  button.primary { padding:9px 12px; border:0; background:#FF9B85; color:#fff; border-radius:6px; cursor:pointer; width:100%; font-weight:600; font-size:13px; }
+  .toggle { display:flex; align-items:center; gap:8px; margin-top:10px; padding:8px 4px; cursor:pointer; user-select:none; }
+  .toggle input { accent-color:#FF9B85; cursor:pointer; }
+  .toggle .label { flex:1; }
+  .toggle .label .sub { color:#aaa; font-size:0.72rem; display:block; margin-top:1px; }
+  .confirm { font-size:0.75rem; color:#2a8; margin-top:4px; padding-left:24px; min-height:1em; }
+  .config { display:none; margin-top:10px; padding-top:10px; border-top:1px solid #eee; }
+  .config.open { display:block; }
+  .config .hint { font-size:0.7rem; color:#aaa; margin-bottom:6px; line-height:1.4; }
+  .config label { display:block; margin:6px 0 3px; font-size:0.72rem; color:#888; }
+  .config input { width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box; font-size:12px; }
+  .config button { padding:6px 10px; border:0; background:#FF9B85; color:#fff; border-radius:5px; cursor:pointer; width:100%; margin-top:8px; font-weight:600; font-size:12px; }
+  .syncStatus { margin-top:6px; font-size:11px; min-height:1em; }
+  .ok { color:#2a8; } .bad { color:#c33; }
 </style>
 </head>
 <body>
-<h3>OpenFeedling cookie sync</h3>
-<label for="serverUrl">Server URL</label>
-<input id="serverUrl" placeholder="https://feedling.example.com" autocomplete="off">
-<label for="secret">Shared secret</label>
-<input id="secret" type="password" autocomplete="off">
-<button id="save">Save & sync now</button>
-<button id="syncOnly" class="ghost">Sync now</button>
-<div class="status" id="status">not configured</div>
-<div class="foot">v0.1 · syncs every 30min and on cookie change</div>
-<script src="popup.js"></script>
+<div class="header">
+  <span class="cat">🐈</span>
+  <span class="title">OpenFeedling</span>
+  <span class="gear" id="gear" title="advanced settings">⚙</span>
+</div>
+
+<div class="pill" id="pill">checking your watch history...</div>
+
+<button class="primary" id="dash">Open dashboard</button>
+
+<label class="toggle">
+  <input type="checkbox" id="notify">
+  <span class="label">
+    Doomscroll notifications
+    <span class="sub">on this browser, when you're scrolling shorts</span>
+  </span>
+</label>
+<div class="confirm" id="confirm"></div>
+
+<div class="config" id="config">
+  <div class="hint">Optional: BYO server (Vercel/Render/etc.) for cross-device push.</div>
+  <label>Server URL</label>
+  <input id="serverUrl" placeholder="https://feedling.example.com" autocomplete="off">
+  <label>Shared secret</label>
+  <input id="secret" type="password" autocomplete="off">
+  <button id="save">Save & sync now</button>
+  <div class="syncStatus" id="syncStatus"></div>
+</div>
+
+<script type="module" src="popup.js"></script>
 </body>
 </html>

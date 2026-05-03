@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFeedling</title>
+<style>
+  :root { --bg:#FFF9F0; --card:#fff; --primary:#FF9B85; --text:#4A4A4A; --light:#8A8A8A; --warn:#c80; --err:#c33; --ok:#2a8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:32px 16px; }
+  .container { max-width:560px; margin:0 auto; }
+  h1 { font-size:2rem; text-align:center; color:var(--primary); margin-bottom:4px; }
+  .sub { text-align:center; color:var(--light); font-size:0.85rem; margin-bottom:24px; }
+  .card { background:var(--card); border-radius:20px; padding:24px; box-shadow:0 4px 24px rgba(255,155,133,0.12); margin-bottom:16px; }
+  .cat { font-size:5rem; text-align:center; }
+  .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:16px; }
+  .stat { text-align:center; }
+  .stat b { display:block; font-size:1.6rem; color:var(--primary); }
+  .stat span { font-size:0.75rem; color:var(--light); }
+  .actions { display:flex; gap:8px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+  button { background:var(--primary); color:#fff; border:0; padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem; }
+  button.ghost { background:transparent; color:var(--primary); border:1px solid var(--primary); }
+  .err { color:var(--err); padding:10px; text-align:center; }
+  .section { font-weight:600; color:var(--primary); margin:14px 0 6px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; }
+  .item { padding:8px 0; border-bottom:1px solid #f3eee6; line-height:1.35; font-size:0.92rem; }
+  .item:last-child { border-bottom:0; }
+  .foot { text-align:center; color:var(--light); font-size:0.75rem; margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>openfeedling</h1>
+  <div class="sub" id="subline">loading...</div>
+
+  <div class="card">
+    <div class="cat" id="cat">🐈</div>
+    <div class="stats">
+      <div class="stat"><b id="todayCount">—</b><span>shorts today</span></div>
+      <div class="stat"><b id="totalCount">—</b><span>in history</span></div>
+    </div>
+    <div class="actions">
+      <button id="refresh">refresh</button>
+      <button class="ghost" id="testNotify">test notification</button>
+    </div>
+  </div>
+
+  <div class="card" id="historyCard">
+    <div id="history" class="err">loading watch history...</div>
+  </div>
+
+  <div class="foot">openfeedling · runs entirely in your browser</div>
+</div>
+<script type="module" src="dashboard.js"></script>
+</body>
+</html>
