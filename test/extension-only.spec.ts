@@ -137,6 +137,31 @@ test("share-to-phone: ntfy round-trip — extension picks up a posted subscripti
   await context.close();
 });
 
+test("share-to-phone: test-phone-push reaches FCM (regression for missing fcm.googleapis.com host permission)", async () => {
+  const { context, extensionId } = await bootContext();
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
+  await dash.evaluate(() => chrome.storage.local.set({
+    phoneSub: {
+      // Real FCM origin so the SW's fetch hits the actual endpoint. Path is
+      // bogus so FCM will return 404 — that's fine; we only care that the
+      // request *reaches* FCM (no CORS / host_permission failure).
+      endpoint: "https://fcm.googleapis.com/fcm/send/host-perm-regression-fake-id",
+      keys: { p256dh: "BHello-test-p256dh-key", auth: "test-auth-secret" },
+    },
+  }));
+  await dash.reload();
+  await expect(dash.locator("#phoneStatus")).toContainText("phone subscribed", { timeout: 10_000 });
+  await dash.click("#testPhone");
+  await expect(dash.locator("#phoneStatus")).not.toHaveText("sending…", { timeout: 15_000 });
+  const status = await dash.locator("#phoneStatus").innerText();
+  // Acceptable: either ✓ sent (impossible with fake) or ✗ push service <2xx-4xx>.
+  // Forbidden: ✗ fetch failed (means CORS / host_permission missing).
+  expect(status, "must reach FCM, not CORS-block").not.toMatch(/fetch failed|Failed to fetch/i);
+  expect(status, "should report a real push-service status").toMatch(/sent|push service \d{3}/);
+  await context.close();
+});
+
 test("share-to-phone: paired state shows test/forget; forget clears storage", async () => {
   const { context, extensionId } = await bootContext();
   const dash = await context.newPage();

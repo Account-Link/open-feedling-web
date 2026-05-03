@@ -12,6 +12,9 @@
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://*.google.com/*",
+    "https://fcm.googleapis.com/*",
+    "https://updates.push.services.mozilla.com/*",
+    "https://web.push.apple.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
