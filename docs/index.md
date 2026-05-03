@@ -49,11 +49,15 @@ To test it: open `youtube.com/shorts` and scroll continuously for 5 minutes. (Or
 
 The pairing handshake uses a one-time [ntfy.sh](https://ntfy.sh) topic. Once your phone is paired, ongoing pushes go directly from your extension to FCM (or Mozilla autopush, or Apple) using a VAPID-signed JWT — nothing routes through ntfy after pairing.
 
-## BYO server (optional, advanced)
+## Want a nudge while your laptop is off? (BYO server)
 
-If you want cross-device cookie sync — say, your laptop browser keeps the cookies fresh on a server and the server polls YouTube even when your laptop is asleep — you can run the included Deno server on Vercel, Render, or your own VPS. Click ⚙ in the popup to enter a server URL + shared secret.
+Extension-only mode only fires while the browser is running. If you also want notifications while you're scrolling on your phone with the laptop closed, something has to be polling YouTube on your behalf 24/7.
 
-Most users don't need this. The default extension-only flow already covers the common case ("I want a nudge when I'm wasting time on this laptop").
+The included Deno server does that. Deploy it to Vercel, Render, or your own VPS, click ⚙ in the popup, paste the URL + a shared secret. The server keeps your YouTube session warm and fires the nudge to your paired devices regardless of whether your laptop is awake.
+
+The trade-off is honest: your YouTube cookies now live on a machine that isn't only yours. The cleanest answer to that trust question is to deploy on a TEE-attested host (e.g. [Phala dstack](https://docs.phala.network/)) so anyone can verify the deployed code never logs or replays your session — that's the direction this project is heading. For now, BYO Vercel/VPS is the practical option.
+
+Most users don't need this. The default extension-only flow already covers "nudge me when I'm wasting time on this laptop."
 
 ## Trust model
 
